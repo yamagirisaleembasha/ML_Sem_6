@@ -1,0 +1,746 @@
+from pgmpy.estimators import *
+from pgmpy.models import BayesianNetwork
+from pgmpy.inference import VariableElimination
+#importing necessary libraries...
+import os,sys,io,math
+from re import *
+from math import *
+from array import *
+from heapq import *
+from numpy import *
+from bisect import *
+from pandas import *
+from sklearn import *
+from functools import *
+from itertools import *
+from statistics import *
+from matplotlib import *
+from collections import *
+from sklearn.cluster import *
+from sklearn.mixture import *
+from sklearn.neighbors import *
+from sklearn.naive_bayes import *
+from sklearn.model_selection import *
+from sklearn.feature_extraction.text import *
+
+
+
+
+
+# 1.	Implement and demonstrate the FIND-S algorithm to finding the most specific hypothesis
+#  based on a given set of data samples. Read the training data from a .CSV file.
+
+
+h=[None]*c
+print('h0 :',h)
+for i in range(r):
+  if fs.loc[i]['EnjoySport']=='Yes':
+    for j in range(c):
+      if h[j]==None:
+        h[j]=fs.loc[i][j]
+      elif h[j]!=fs.loc[i][j]:
+        h[j]='?'
+
+  print('h'+str(i+1),':',h)
+
+
+
+
+
+
+# 2.	For a given set of training data examples stored in a .CSV file, implement and demonstrate the Candidate-Elimination
+#  algorithm to output a description of the set of all hypotheses consistent with the training examples.
+
+s=[None]*c
+g_=['?']*c
+g=[g_]
+print('s0 :',s)
+print('g0 :',g)
+
+def removeFrom(g,d):
+  i=0
+  while i<len(g):
+    k=g[i]
+    f=0
+    for j in range(c):
+      if k[j]!='?':
+        if k[j]!=d[j]:
+          g.remove(k)
+          f=1
+          break
+    if f==0: i+=1
+
+
+def generalize(s,d):
+  for j in range(c):
+      if s[j]==None:
+        s[j]=d[j]
+      elif s[j]!=d[j]:
+        s[j]='?'
+
+
+
+def inconsistent(k,d):
+  for j in range(c):
+    if k[j]!='?':
+      if k[j]!=d[j]:
+        return 0
+  return 1
+
+
+def specialize(g,d):
+  i=0
+  m=[]
+  while i<len(g):
+    k=g[i]
+    f=0
+    if inconsistent(k,d):
+      for j in range(c):
+        p=k.copy()
+        if p[j]=='?' and s[j]!='?' and  s[j]!=d[j]:
+          p[j]=s[j]
+          m.append(p)
+      f=1
+      g.remove(k)
+    if f==0: i+=1
+  g.extend(m)
+  g=np.unique(g,axis=0)
+
+
+for i in range(r):
+  if fs.loc[i]['EnjoySport']=='Yes':
+    removeFrom(g,fs.loc[i])
+    generalize(s,fs.loc[i])
+  else:
+    specialize(g,fs.loc[i])
+
+  print('s'+str(i+1),':',s)
+  print('g'+str(i+1),':',g)
+
+print('Learned Version Space Combinations:')
+
+v=[]
+for k in g:
+  f=0
+  p=[]
+  for j in range(c):
+    if k[j]!='?' and k[j]==s[j]:
+      p.append(j)
+    elif k[j]!='?' and k[j]!=s[j]:
+      f=1
+      break
+
+  if f==0:
+    for j in range(c):
+      q=k.copy()
+      if j not in p and s[j]!='?':
+        q[j]=s[j]
+        v.append(q)
+
+v=np.unique(v,axis=0)
+print(v)
+
+
+
+
+
+
+# 3.	Write a program to implement the naïve Bayesian classifier for a sample training data set stored as a .CSV file.
+# Compute the accuracy of the classifier, considering few test data sets.
+
+import numpy as np
+import pandas as pd
+
+from google.colab import drive
+drive.mount("/content/drive")
+t=pd.read_csv('/content/drive/My Drive/Play_Tennis.csv')
+from sklearn.model_selection import train_test_split
+x=t.drop('Class',axis=1)
+y=t.Class
+x_train,x_test,y_train,y_test=train_test_split(x,y,test_size=0.4,random_state=15)c=len(x_train)
+print('No. of rows in x_train =',c)
+q=len(x_test)
+print('No. of rows in x_test =',q)
+k=len(x_train.columns)
+x_train.index=range(c)
+x_test.index=range(q)
+y_train.index=range(c)
+y_test.index=range(q)
+print('Train data')
+print(x_train)
+print('\nTest data')
+print(x_test)
+c_n=len(y_train[y_train=='N'])
+p_n=c_n/c
+print('Probability of Negative class = ',p_n)
+c_p=len(y_train[y_train=='P'])
+p_p=c_p/c
+print('Probability of Positive class = ',p_p)
+d_p={}
+d_n={}
+x_train['Class']=y_train
+col=x_train.columns
+for i in range(k):
+  l=x_train[col[i]].unique()
+  for j in l:
+    d_p[j]=len(x_train[(x_train[col[i]]==j) & (x_train.Class=='P')])/c_p
+    d_n[j]=len(x_train[(x_train[col[i]]==j) & (x_train.Class=='N')])/c_n
+# c_n=len(y_test[y_test=='N'])
+# p_n=c_n/q
+# print('Probability of Negative class for test data = %.3f'%(p_n))
+# c_p=len(y_test[y_test=='P'])
+# p_p=c_p/q
+# print('Probability of Positive class for test data = %.3f'%(p_p))
+res=[]
+p,n=1,1
+for i in range(q):
+  f=x_test.loc[i]
+  for j in range(k):
+    p=p*d_p[f[j]]
+    n=n*d_n[f[j]]
+  p=p*p_p
+  n=n*p_n
+  if p>=n:
+    res.append('P')
+  else:
+    res.append('N')
+print('Predicted class labels =',res)
+print('Actual class labels =\n',y_test)
+acc=0
+for i in range(q):
+  if res[i]==y_test[i]:
+    acc=acc+1
+
+print('Accuracy = %.3f'%(acc/q))
+
+
+
+
+
+# Naive Bayes textclassification
+
+import numpy as np
+import pandas as pd
+data=pd.read_csv('/content/drive/My Drive/naivetext.csv')
+data['Text']=data['Text'].str.lower()
+from sklearn.model_selection import train_test_split
+x=data
+y=data.Class
+t,test,y_train,y_test=train_test_split(x,y,test_size=0.4,random_state=15)r=len(t)
+c=len(t.columns)
+print('No. of rows in train set :',r)
+
+r1=len(test)
+test.index=range(r1)
+print('No. of rows in test set:',r1)
+
+t.index,test.index,y_train.index,y_test.index=range(r),range(r1),range(r),range(r1)
+vocab=[]
+for i in range(r):
+  vocab.extend(t['Text'][i].split())
+
+vocab=list(set(vocab))
+l=len(vocab)
+print('Vocabulary:',vocab)c_p=len(t[t.Class=='pos'])
+c_n=len(t[t.Class=='neg'])
+p_p,p_n=c_p/r,c_n/r
+print('Probability of positive texts = %.3f'%(p_p))
+print('Probability of negative texts = %.3f'%(p_n))
+d_p,d_n={},{}
+for i in range(r):
+  if t['Class'][i]=='pos':
+    for j in t['Text'][i].split():
+      d_p[j]=d_p.get(j,0)+1
+  else:
+    for j in t['Text'][i].split():
+      d_n[j]=d_n.get(j,0)+1
+
+n1=sum(d_p.values())
+n2=sum(d_n.values())
+for i in vocab:
+  d_p[i]=(d_p.get(i,0)+1)/(n1+l)
+  d_n[i]=(d_n.get(i,0)+1)/(n2+l)
+
+
+res=[]
+for i in range(r1):
+  p,n=1,1
+  for j in test['Text'][i].split():
+    if j in vocab:
+      p=p*d_p[j]
+      n=n*d_n[j]
+
+  p=p*p_p
+  n=n*p_n
+  if p>n:
+    res.append('pos')
+  else:
+    res.append('neg')
+print('Predicted class labels =',res)
+print('Actual class labels =',list(test['Class']))
+tn,fn,tp,fp=0,0,0,0
+for i in range(r1):
+  if res[i]=='neg' and test['Class'][i]=='neg':
+    tn=tn+1
+  elif res[i]=='neg' and test['Class'][i]=='pos':
+    fn=fn+1
+  elif res[i]=='pos' and test['Class'][i]=='neg':
+    fp=fp+1
+  elif res[i]=='pos' and test['Class'][i]=='pos':
+    tp=tp+1
+
+cfm=[[tn,fp],[fn,tp]]
+print('Confusion Matrix:',cfm)
+acc=(tp+tn)/(tp+tn+fp+fn)
+precision=tp/(tp+fp)
+recall=tp/(tp+fn)
+
+print('Accuracy = %.3f'%(acc))
+print('Precision = %.3f'%(precision))
+print('Recall = %.3f'%(recall))
+
+
+
+
+
+#Bayesian Network
+
+import numpy as np
+import pandas as pd
+
+from pgmpy.estimators import MaximumLikelihoodEstimator
+from pgmpy.models import BayesianNetwork
+from pgmpy.inference import VariableElimination
+#read Cleveland Heart Disease data
+heartDisease = pd.read_csv('/content/drive/My Drive/heart.csv')
+heartDisease = heartDisease.replace('?',np.nan)
+#display the data
+print('Sample instances from the dataset are given below')
+print(heartDisease.head())
+
+# display the Attributes names and datatyes
+# print('\n Attributes and datatypes')
+# print(heartDisease.dtypes)
+
+#Creat Model- Bayesian Network
+model = BayesianNetwork([('age','heartdisease'),('sex','heartdisease'),(
+'exang','heartdisease'),('cp','heartdisease'),('heartdisease',
+'restecg'),('heartdisease','chol')])
+#Learning CPDs using Maximum Likelihood Estimators
+print('\n Learning CPD using Maximum likelihood estimators')
+model.fit(heartDisease,estimator=MaximumLikelihoodEstimator)
+# Inferencing with Bayesian Network
+print('\n Inferencing with Bayesian Network:')
+HeartDiseasetest_infer = VariableElimination(model)
+#computing the Probability of HeartDisease given restecg
+print('\n 1.Probability of HeartDisease given evidence=restecg :1')
+q1=HeartDiseasetest_infer.query(variables=['heartdisease'],evidence={'restecg':1})
+print(q1)
+#computing the Probability of HeartDisease given cp
+print('\n 2.Probability of HeartDisease given evidence= cp:2 ')
+q2=HeartDiseasetest_infer.query(variables=['heartdisease'],evidence={'cp':2})
+print(q2)
+
+
+
+
+
+#ID3 Algorithm
+import math
+import csv
+def load_csv(filename):
+    lines=csv.reader(open(filename,"r"));
+    dataset = list(lines)
+    headers = dataset.pop(0)
+    return dataset,headers
+
+class Node:
+    def __init__(self,attribute):
+        self.attribute=attribute
+        self.children=[]
+        self.answer=""
+
+def subtables(data,col,delete):
+    dic={}
+    coldata=[row[col] for row in data]
+    attr=list(set(coldata))
+
+    counts=[0]*len(attr)
+    r=len(data)
+    c=len(data[0])
+    for x in range(len(attr)):
+        for y in range(r):
+            if data[y][col]==attr[x]:
+                counts[x]+=1
+
+    for x in range(len(attr)):
+        dic[attr[x]]=[[0 for i in range(c)] for j in range(counts[x])]
+        pos=0
+        for y in range(r):
+            if data[y][col]==attr[x]:
+                if delete:
+                    del data[y][col]
+                dic[attr[x]][pos]=data[y]
+                pos+=1
+    return attr,dic
+
+def entropy(S):
+    attr=list(set(S))
+    if len(attr)==1:
+        return 0
+
+    counts=[0,0]
+    for i in range(2):
+        counts[i]=sum([1 for x in S if attr[i]==x])/(len(S)*1.0)
+
+    sums=0
+    for cnt in counts:
+        sums+=-1*cnt*math.log(cnt,2)
+    return sums
+
+def compute_gain(data,col):
+    attr,dic = subtables(data,col,delete=False)
+
+    total_size=len(data)
+    entropies=[0]*len(attr)
+    ratio=[0]*len(attr)
+
+    total_entropy=entropy([row[-1] for row in data])
+    for x in range(len(attr)):
+        ratio[x]=len(dic[attr[x]])/(total_size*1.0)
+        entropies[x]=entropy([row[-1] for row in dic[attr[x]]])
+        total_entropy-=ratio[x]*entropies[x]
+    return total_entropy
+
+def build_tree(data,features):
+    lastcol=[row[-1] for row in data]
+    if(len(set(lastcol)))==1:
+        node=Node("")
+        node.answer=lastcol[0]
+        return node
+
+    n=len(data[0])-1
+    gains=[0]*n
+    for col in range(n):
+        gains[col]=compute_gain(data,col)
+    split=gains.index(max(gains))
+    node=Node(features[split])
+    fea = features[:split]+features[split+1:]
+
+
+    attr,dic=subtables(data,split,delete=True)
+
+    for x in range(len(attr)):
+        child=build_tree(dic[attr[x]],fea)
+        node.children.append((attr[x],child))
+    return node
+
+def print_tree(node,level):
+    if node.answer!="":
+        print("  "*level,node.answer)
+        return
+
+    print("  "*level,node.attribute)
+    for value,n in node.children:
+        print("  "*(level+1),value)
+        print_tree(n,level+2)
+
+
+def classify(node,x_test,features):
+    if node.answer!="":
+        print(node.answer)
+        return
+    pos=features.index(node.attribute)
+    for value, n in node.children:
+        if x_test[pos]==value:
+            classify(n,x_test,features)
+
+'''Main program'''
+dataset,features=load_csv('/content/drive/My Drive/id3.csv')
+node1=build_tree(dataset,features)
+
+print("The decision tree for the dataset using ID3 algorithm is")
+print_tree(node1,0)
+testdata,features=load_csv('/content/drive/My Drive/id3_test.csv')
+
+for xtest in testdata:
+    print("The test instance:",xtest)
+    print("The label for test instance:",end="   ")
+    classify(node1,xtest,features)
+
+
+
+
+
+# import pandas as pd
+# from sklearn.tree import DecisionTreeClassifier # Import Decision Tree Classifier
+# from sklearn.model_selection import train_test_split # Import train_test_split function
+# from sklearn import metrics #Import scikit-learn metrics module for accuracy calculation
+
+# col_names=['Outlook','Temperature','Humidity','Wind','PlayTennis']
+# data = pd.read_csv("/content/drive/My Drive/id3.csv", header=None, names=col_names)
+# feature_cols = ['Outlook', 'Temperature', 'Humidity', 'Wind']
+# X = data[feature_cols] # Features
+# y = data.PlayTennis # Target variable
+# X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=1)
+
+# # Create Decision Tree classifer object
+# clf = DecisionTreeClassifier(criterion="entropy")
+
+# # Train Decision Tree Classifer
+# clf = clf.fit(X_train,y_train)
+
+# #Predict the response for test dataset
+# y_pred = clf.predict(X_test)
+# print("Accuracy:",metrics.accuracy_score(y_test, y_pred))
+
+
+
+
+
+#7.	Build an Artificial Neural Network by implementing the Back propagation algorithm and test the same using appropriate data sets.
+import numpy as np
+X = np.array(([2, 9], [1, 5], [3, 6]), dtype=float) # two inputs [sleep,study]
+y = np.array(([92], [86], [89]), dtype=float) # one output [Expected % in Exams]
+X = X/np.amax(X,axis=0) # maximum of X array longitudinally
+y = y/100
+
+#Sigmoid Function
+def sigmoid (x):
+    return 1/(1 + np.exp(-x))
+
+#Derivative of Sigmoid Function
+def derivatives_sigmoid(x):
+    return x * (1 - x)
+
+#Variable initialization
+epoch=5000 #Setting training iterations
+lr=0.1 #Setting learning rate
+inputlayer_neurons = 2 #number of features in data set
+hiddenlayer_neurons = 3 #number of hidden layers neurons
+output_neurons = 1 #number of neurons at output layer
+
+#weight and bias initialization
+wh=np.random.uniform(size=(inputlayer_neurons,hiddenlayer_neurons)) #weight of the link from input node to hidden node
+bh=np.random.uniform(size=(1,hiddenlayer_neurons)) # bias of the link from input node to hidden node
+wout=np.random.uniform(size=(hiddenlayer_neurons,output_neurons)) #weight of the link from hidden node to output node
+bout=np.random.uniform(size=(1,output_neurons)) #bias of the link from hidden node to output node
+
+
+#draws a random range of numbers uniformly of dim x*y
+for i in range(epoch):
+
+#Forward Propogation
+    hinp1=np.dot(X,wh)
+    hinp=hinp1 + bh
+    hlayer_act = sigmoid(hinp)
+    outinp1=np.dot(hlayer_act,wout)
+    outinp= outinp1+ bout
+    output = sigmoid(outinp)
+
+#Backpropagation
+    EO = y-output
+    outgrad = derivatives_sigmoid(output)
+    d_output = EO* outgrad
+    EH = d_output.dot(wout.T)
+
+#how much hidden layer weights contributed to error
+    hiddengrad = derivatives_sigmoid(hlayer_act)
+    d_hiddenlayer = EH * hiddengrad
+
+# dotproduct of nextlayererror and currentlayerop
+wout += hlayer_act.T.dot(d_output) *lr
+wh += X.T.dot(d_hiddenlayer) *lr
+
+print("Input: \n" + str(X))
+print("Actual Output: \n" + str(y))
+print("Predicted Output: \n" ,output)
+
+
+
+
+
+#8. Apply EM algorithm to cluster a set of data stored in a .CSV file. Use the same data set for clustering using K-Means algorithm.
+# Compare the results of these two algorithms and comment on the quality of clustering.
+
+import matplotlib.pyplot as plt
+from pandas import DataFrame
+#importing iris data to perform...
+iris=datasets.load_iris()
+x=DataFrame(iris.data)
+x.columns=['Sepal_Length','Sepal_Width','Petal_Length','Petal_Width']
+y=DataFrame(iris.target)
+y.columns=['Targets']
+
+
+#build k-Means model...
+d=KMeans(n_clusters=3)
+d.fit(x)
+
+#now visualise the clustering results...
+plt.figure(figsize=(14,14))
+cmap=array(['red','lime','black'])
+
+
+#now plot for the original classifications using petal features...
+plt.subplot(2,2,1)
+plt.scatter(x.Petal_Length,x.Petal_Width,c=cmap[y.Targets],s=40)
+plt.title('Real Clusters')
+plt.xlabel('Petal length')
+plt.ylabel('Petal width')
+
+#now plot the model classifications..
+plt.subplot(2,2,2)
+plt.scatter(x.Petal_Length,x.Petal_Width,c=cmap[d.labels_],s=40)
+plt.title('k-means Clusters')
+plt.xlabel('Petal length')
+plt.ylabel('Petal width')
+
+#8th continution...
+
+s=preprocessing.StandardScaler()
+s.fit(x)
+xsa=s.transform(x)
+xs=DataFrame(xsa,columns=x.columns)
+
+gmm=GaussianMixture(n_components=3)
+gmm.fit(xs)
+gmmy=gmm.predict(xs)
+plt.subplot(2,2,3)
+plt.scatter(x.Petal_Length,x.Petal_Width,c=cmap[gmmy],s=40)
+plt.title("GMM Clustering...")
+plt.xlabel("Petal Length")
+plt.ylabel('Petal Width')
+print("Observation: The GMM using EM algo based clustering method the true labels are more closely than the KMeans!!!")
+
+
+
+
+
+
+#9.  Write a program to implement k-Nearest Neighbor algorithm to classify the iris data set.
+#    Print both correct and wrong predictions. Java/Python ML library classes can be used for this problem.
+
+d=datasets.load_iris()
+xtr,xte,ytr,yte=train_test_split(d.data,d.target,test_size=0.1)
+
+for i in range(len(d.target_names)):
+  print("Label",i,"-",str(d.target_names[i]))
+
+#create obj of KNN classifier...
+classifier=KNeighborsClassifier(n_neighbors=1)
+
+#performing training...
+classifier.fit(xtr,ytr)
+y_pred=classifier.predict(xte)
+
+#now display results...
+print("\nResults of classification using KNN with k=1:")
+for r in range(len(xte)):
+  print("Sample:",str(xte[r])," Actual label:",str(yte[r])," Predicted label:",str(y_pred[r]))
+print("\nClassification Accuracy:",classifier.score(xte,yte))
+
+print("\nConfusion matrix:\n",metrics.confusion_matrix(yte,y_pred))
+print("\nAccuracy metrics:\n",metrics.classification_report(yte,y_pred))
+
+
+
+
+
+
+#10. Implement the non-parametric Locally Weighted Regression algorithm in order
+#    to fit data points. Select appropriate data set your experiment and draw graphs.
+
+
+import matplotlib.pyplot as plt
+#kernel smoothing function...
+def kernel(p,xmat,k):
+  m,n=shape(xmat)
+  w=mat(eye(m))
+  for i in range(m):
+    d=p-x[i]
+    w[i,i]=exp(d*d.T/(-2.0*k**2))
+  return w
+
+#function to return local wieght of each training example...
+def local(p,xmat,ymat,k):
+  wt=kernel(p,xmat,k)
+  w=(x.T*(wt*x)).I*(x.T*wt*ymat.T)
+  return w
+
+#root function that drives algo...
+def lwr(xmat,ymat,k):
+  m,n=shape(xmat)
+  yp=zeros(m)
+  for i in range(m):
+    yp[i]=xmat[i]*local(xmat[i],xmat,ymat,k)
+  return yp
+
+d=read_csv("/content/10-dataset.csv")
+ca,cb=array(d.total_bill),array(d.tip)
+mca,mcb=mat(ca),mat(cb)
+m=shape(mcb)[1]
+o=ones((1,m),dtype=int)
+
+#horizontal stacking...
+x=hstack((o.T,mca.T))
+print(x.shape)
+
+#predicting values using LWLR...
+ypred=lwr(x,mcb,0.0)
+
+#plotting the predicted graph...
+xs=x.copy()
+xs.sort(axis=0)
+plt.scatter(ca,cb,color='blue')
+plt.plot(xs[:,1],ypred[x[:,1].argsort(0)],color='yellow',linewidth=5)
+plt.xlabel('Total bill')
+plt.ylabel('Tip')
+plt.show()
+
+
+
+
+
+#id3
+import numpy as np
+import pandas as pd
+from sklearn import metrics #Import scikit-learn metrics module for accuracy calculation
+
+df=pd.read_csv("/content/drive/My Drive/id3.csv")
+value=['Outlook','Temperature','Humidity','Wind']
+print(df)
+
+#machine learning algorithms can only learn from numbers (int, float, doubles .. )
+#so let us encode it to int
+from sklearn import preprocessing
+string_to_int= preprocessing.LabelEncoder()                     #encode your data
+df=df.apply(string_to_int.fit_transform) #fit and transform it
+print(df)
+
+feature_cols = ['Outlook','Temperature','Humidity','Wind']
+X = df[feature_cols ]                               #contains the attribute 
+y = df.PlayTennis                                  #contains the label
+
+#To divide our data into training and test sets:
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.30, random_state=15)
+
+# perform training 
+from sklearn.tree import DecisionTreeClassifier                             # import the classifier
+classifier =DecisionTreeClassifier(criterion="entropy", random_state=100)     # create a classifier object
+classifier.fit(X_train, y_train)                                              # fit the classifier with X and Y data or 
+
+#Predict the response for test dataset
+y_pred= classifier.predict(X_test) 
+
+# Model Accuracy, how often is the classifier correct?
+from sklearn.metrics import accuracy_score
+print("Accuracy:",metrics.accuracy_score(y_test, y_pred))
+
+data_p=pd.DataFrame({'Actual':y_test, 'Predicted':y_pred})  
+print(data_p)
+
+from sklearn.metrics import classification_report, confusion_matrix  
+print(confusion_matrix(y_test, y_pred))  
+print(classification_report(y_test, y_pred)) 
